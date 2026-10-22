@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import { TerminalSquare, Eraser, LockKeyhole } from "lucide-react";
@@ -12,6 +12,27 @@ export function TerminalPane({
   running: boolean;
   onExit: (code: number) => void;
 }) {
+  const [tab, setTab] = useState<"ssh" | "commands">("ssh");
+  const [commands, setCommands] = useState("");
+  const commandSurface = useRef<HTMLPreElement>(null);
+  useEffect(
+    () =>
+      window.desktop?.onOperationEvent((event) => {
+        const text =
+          event.kind === "command"
+            ? `\n$ ${event.text}\n`
+            : event.kind === "finished"
+              ? `\n[${event.text}]\n`
+              : event.text;
+        setCommands((previous) => (previous + text).slice(-200000));
+        setTab("commands");
+      }),
+    [],
+  );
+  useEffect(() => {
+    if (commandSurface.current)
+      commandSurface.current.scrollTop = commandSurface.current.scrollHeight;
+  }, [commands, tab]);
   const container = useRef<HTMLDivElement>(null);
   const terminal = useRef<Terminal | null>(null);
   const exitHandler = useRef(onExit);
@@ -49,6 +70,7 @@ export function TerminalPane({
       exitHandler.current(code);
     });
     const observer = new ResizeObserver(() => {
+      if (!container.current?.clientWidth) return;
       fit.fit();
       window.desktop?.resize(term.cols, term.rows);
     });
@@ -82,9 +104,25 @@ export function TerminalPane({
           className="icon-button"
           title="Очистить терминал"
           aria-label="Очистить терминал"
-          onClick={() => terminal.current?.clear()}
+          onClick={() =>
+            tab === "ssh" ? terminal.current?.clear() : setCommands("")
+          }
         >
           <Eraser size={15} />
+        </button>
+      </div>
+      <div className="terminal-tabs">
+        <button
+          className={tab === "ssh" ? "active" : ""}
+          onClick={() => setTab("ssh")}
+        >
+          SSH
+        </button>
+        <button
+          className={tab === "commands" ? "active" : ""}
+          onClick={() => setTab("commands")}
+        >
+          Команды
         </button>
       </div>
       <div className="terminal-tab">
@@ -92,7 +130,16 @@ export function TerminalPane({
         <span>SSH / {running ? "сеанс запущен" : "ожидание подключения"}</span>
         <kbd>1</kbd>
       </div>
-      <div className="terminal-surface" ref={container} />
+      <div className="terminal-surface" hidden={tab !== "ssh"}>
+        <div className="terminal-host" ref={container} />
+      </div>
+      <pre
+        className="operation-output"
+        ref={commandSurface}
+        hidden={tab !== "commands"}
+      >
+        {commands || "Здесь появятся команды проверок и обработки НЗ."}
+      </pre>
       <div className="terminal-tip">
         <LockKeyhole size={16} />
         <p>

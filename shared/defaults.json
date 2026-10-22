@@ -1,0 +1,25 @@
+{
+  "source": {
+    "rsl10": "/data/aleph/rsl10_z00.dat",
+    "rsl11": "/data/aleph/rsl11_z00.dat",
+    "relations": "/data/aleph/rsl01_z00.dat",
+    "output": "/data/migration/authorities"
+  },
+  "processing": {
+    "container": "auth-docs-relations-worker",
+    "watcher": "abis-deploy-watch",
+    "packageRsl10": "/work/output/authorities-2026-10-22/RSL10",
+    "importIdRsl10": "",
+    "stageReportRsl10": "",
+    "analysisReportRsl10": "",
+    "dryRunReportRsl10": "",
+    "applyReportRsl10": "",
+    "library": "RSL10",
+    "packageRsl11": "/work/output/authorities-2026-10-22/RSL11",
+    "importIdRsl11": "",
+    "stageReportRsl11": "",
+    "analysisReportRsl11": "",
+    "dryRunReportRsl11": "",
+    "applyReportRsl11": ""
+  }
+}

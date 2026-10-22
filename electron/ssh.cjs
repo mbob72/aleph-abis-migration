@@ -4,7 +4,7 @@ const path = require("node:path");
 function buildSshArgs(profile) {
   if (!profile || typeof profile !== "object")
     throw new Error("Не заданы настройки SSH.");
-  const { host, user, port, publicKey } = profile;
+  const { host, user, port, privateKey } = profile;
   if (
     typeof host !== "string" ||
     !/^[a-zA-Z0-9][a-zA-Z0-9.:-]*$/.test(host) ||
@@ -32,18 +32,24 @@ function buildSshArgs(profile) {
     "-o",
     "ServerAliveCountMax=3",
   ];
-  if (publicKey) {
-    if (
-      typeof publicKey !== "string" ||
-      !path.isAbsolute(publicKey) ||
-      !publicKey.endsWith(".pub") ||
-      /[\r\n\0]/.test(publicKey)
-    )
-      throw new Error("Выберите абсолютный путь к публичному ключу .pub.");
-    // OpenSSH умеет сопоставить публичный ключ с приватным ключом в агенте.
-    args.push("-o", "IdentitiesOnly=yes", "-i", publicKey);
+  if (privateKey) {
+    validatePrivateKeyPath(privateKey);
+    args.push("-o", "IdentitiesOnly=yes", "-i", privateKey);
   }
   args.push("-l", user, host);
   return args;
 }
-module.exports = { buildSshArgs };
+/** Проверяет путь без чтения содержимого ключа. DOC-PREVIEW:/docs/architecture.md#ssh */
+function validatePrivateKeyPath(privateKey) {
+  if (
+    typeof privateKey !== "string" ||
+    !path.isAbsolute(privateKey) ||
+    /[\r\n\0]/.test(privateKey)
+  )
+    throw new Error("Выберите абсолютный путь к приватному SSH-ключу.");
+  if (privateKey.toLowerCase().endsWith(".pub"))
+    throw new Error(
+      "Это публичный ключ .pub. Выберите соответствующий приватный файл без .pub.",
+    );
+}
+module.exports = { buildSshArgs, validatePrivateKeyPath };
