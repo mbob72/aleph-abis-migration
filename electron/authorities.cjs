@@ -7,9 +7,10 @@ const uncertainStarts = new Set();
 /** Нормализует профиль без передачи произвольных команд из React. DOC-PREVIEW:/docs/architecture.md#authority-commands */
 function settings(profile) {
   const library = profile?.processing?.library || "RSL10";
-  if (!["RSL10", "RSL11"].includes(library))
-    throw new Error("Выберите библиотеку RSL10 или RSL11.");
-  const suffix = library === "RSL11" ? "Rsl11" : "Rsl10";
+  if (!["RSL10", "RSL11", "TST11"].includes(library))
+    throw new Error("Выберите библиотеку RSL10, RSL11 или TST11.");
+  const suffix =
+    library === "TST11" ? "Tst11" : library === "RSL11" ? "Rsl11" : "Rsl10";
   const result = {
     library,
     suffix,
@@ -248,16 +249,17 @@ async function runAuthorityAction(
   try {
     const config = settings(profile);
     const selectedAction =
-      /^(stage|analyze|dry-run|apply|verify)-rsl(10|11)$/.exec(action);
+      /^(stage|analyze|dry-run|apply|verify)-(rsl10|rsl11|tst11)$/.exec(action);
     if (selectedAction) {
-      if (config.library !== "RSL" + selectedAction[2])
+      if (config.library !== selectedAction[2].toUpperCase())
         throw new Error(
           "Кнопка относится к другой библиотеке. Проверьте выбранный маршрут.",
         );
-      action = selectedAction[1] + "-rsl10"; // Общий allowlist и исполнение для обеих библиотек.
+      action = selectedAction[1] + "-rsl10"; // Общий allowlist и исполнение для всех библиотек.
     }
     if (
       ![
+        "batch-status",
         "container-status",
         "worker-status",
         "delivery-status",
@@ -328,6 +330,53 @@ async function runAuthorityAction(
       return value;
     };
     let data;
+    if (action === "batch-status") {
+      data = parseJson(
+        await exec([
+          "docker",
+          "exec",
+          config.container,
+          "node",
+          "/work/control/authority-batch.mjs",
+          "--status",
+        ]),
+      );
+      if (
+        data.version !== "authority-refresh-v1" ||
+        !["idle", "running", "failed", "completed"].includes(data.status)
+      )
+        throw new Error("Неизвестный формат пакетного контроллера.");
+      const checkpointUpdates = {};
+      for (const entry of data.results || []) {
+        const suffix = { RSL10: "Rsl10", RSL11: "Rsl11", TST11: "Tst11" }[
+          entry.library
+        ];
+        if (!suffix) throw new Error("Неизвестная библиотека контроллера.");
+        if (entry.package)
+          checkpointUpdates["package" + suffix] = packagePath(
+            entry.package,
+            [],
+          );
+        if (entry.importId)
+          checkpointUpdates["importId" + suffix] = entry.importId;
+        for (const [stage, field] of Object.entries({
+          stage: "stageReport",
+          analyze: "analysisReport",
+          "dry-run": "dryRunReport",
+          apply: "applyReport",
+        }))
+          checkpointUpdates[field + suffix] = entry.reports?.[stage]
+            ? reportPath(entry.reports[stage])
+            : "";
+      }
+      return {
+        ok: true,
+        data,
+        checkpointUpdates,
+        durationMs: Date.now() - started,
+        message: "Состояние пакетной загрузки обновлено.",
+      };
+    }
     if (action === "container-status") data = await inspect();
     else if (action === "worker-status") {
       data = await worker();
@@ -502,6 +551,15 @@ async function runAuthorityAction(
               );
           }
         }
+        await exec([
+          "docker",
+          "exec",
+          config.container,
+          "test",
+          "!",
+          "-d",
+          "/work/control/authority-batch.lock",
+        ]);
         uncertainStarts.add(key);
         startIssued = true;
         data = workerState(
@@ -556,6 +614,15 @@ async function runAuthorityAction(
         container.mounts,
       );
       await exec(["docker", "exec", config.container, "test", "-f", input]);
+      await exec([
+        "docker",
+        "exec",
+        config.container,
+        "test",
+        "!",
+        "-d",
+        "/work/control/authority-batch.lock",
+      ]);
       uncertainStarts.add(key);
       startIssued = true;
       data = workerState(

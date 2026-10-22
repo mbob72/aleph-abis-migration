@@ -20,6 +20,12 @@
     "stageReportRsl11": "",
     "analysisReportRsl11": "",
     "dryRunReportRsl11": "",
-    "applyReportRsl11": ""
+    "applyReportRsl11": "",
+    "packageTst11": "/work/output/authorities-2026-10-22/TST11",
+    "importIdTst11": "",
+    "stageReportTst11": "",
+    "analysisReportTst11": "",
+    "dryRunReportTst11": "",
+    "applyReportTst11": ""
   }
 }

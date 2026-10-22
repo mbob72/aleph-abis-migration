@@ -184,30 +184,24 @@ else { console.error('Unexpected fixture command: ' + command); process.exit(42)
       await page
         .getByRole("button", { name: "К процессингу", exact: true })
         .click();
+      assert.equal(
+        await page
+          .getByRole("button", { name: "Подготовить RSL10", exact: true })
+          .count(),
+        0,
+      );
       await page
-        .getByRole("button", { name: "Подготовить RSL10", exact: true })
+        .getByRole("button", { name: "TST11 tst11-ng", exact: true })
         .click();
       await page
-        .getByText(
-          "Задача fixture-rsl10 принята worker. Это не означает завершение обработки.",
-          { exact: true },
-        )
+        .getByRole("heading", {
+          name: "TST11: загрузка и проверка",
+          exact: true,
+        })
         .waitFor();
       await page
-        .getByRole("button", { name: "Обновить статус задачи", exact: true })
+        .getByRole("button", { name: "RSL10 numeric001", exact: true })
         .click();
-      await page.locator(".task-status.done").waitFor();
-      await page
-        .getByRole("button", { name: "Последние 100 строк лога", exact: true })
-        .click();
-      await page
-        .locator(".monitor-log")
-        .filter({ hasText: "Fixture: RSL10 prepared" })
-        .waitFor();
-      await page
-        .getByRole("button", { name: "Отчёт обработки", exact: true })
-        .click();
-      await page.locator(".digest-metrics").filter({ hasText: "3" }).waitFor();
       await page
         .getByRole("button", { name: "Проверить пакет RSL10", exact: true })
         .click();
@@ -474,8 +468,6 @@ else { console.error('Unexpected fixture command: ' + command); process.exit(42)
       assert.match(commands, /'--stage' 'dry-run' '--import-id'/);
       assert.match(commands, /'--stage' 'apply' '--import-id'/);
       assert.match(commands, /'--stage' 'verify' '--import-id'/);
-      assert.match(commands, /'--input' '\/source\/rsl10_z00.dat'/);
-      assert.match(commands, /'--identity-policy' 'numeric001'/);
       assert.ok(!commands.includes("never-persist-workflow-password"));
     } catch (error) {
       console.error(

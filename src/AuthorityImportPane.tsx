@@ -8,7 +8,7 @@ type Props = {
   onUpdate: (field: string, value: string) => void;
   run: (action: AuthorityAction) => void;
 };
-/** Общий маршрут с отдельными checkpoints RSL10/RSL11. DOC-PREVIEW:/docs/architecture.md#authority-libraries */
+/** Общий маршрут с отдельными checkpoints RSL10/RSL11/TST11. DOC-PREVIEW:/docs/architecture.md#authority-libraries */
 export function AuthorityImportPane({
   settings,
   disabled,
@@ -16,8 +16,11 @@ export function AuthorityImportPane({
   onUpdate,
   run,
 }: Props) {
-  const library = settings.library === "RSL11" ? "RSL11" : "RSL10";
-  const suffix = library === "RSL11" ? "Rsl11" : "Rsl10";
+  const library = ["RSL10", "RSL11", "TST11"].includes(settings.library)
+    ? (settings.library as "RSL10" | "RSL11" | "TST11")
+    : "RSL10";
+  const suffix =
+    library === "TST11" ? "Tst11" : library === "RSL11" ? "Rsl11" : "Rsl10";
   const fields = {
     package: `package${suffix}`,
     importId: `importId${suffix}`,
@@ -110,7 +113,7 @@ export function AuthorityImportPane({
         role="group"
         aria-label="Библиотека нормативных записей"
       >
-        {(["RSL10", "RSL11"] as const).map((value) => (
+        {(["RSL10", "RSL11", "TST11"] as const).map((value) => (
           <button
             key={value}
             className={value === library ? "selected" : ""}
@@ -119,7 +122,13 @@ export function AuthorityImportPane({
             onClick={() => onUpdate("library", value)}
           >
             {value}
-            <small>{value === "RSL10" ? "numeric001" : "rsl11-nafpn"}</small>
+            <small>
+              {value === "TST11"
+                ? "tst11-ng"
+                : value === "RSL10"
+                  ? "numeric001"
+                  : "rsl11-nafpn"}
+            </small>
           </button>
         ))}
       </div>
@@ -147,8 +156,7 @@ export function AuthorityImportPane({
         />
         <span className="field-hint">
           Каталог с manifest.json, authorities.ndjson.gz и diagnostics.ndjson.
-          Если готовый пакет есть, проверьте его; подготовка исходного DAT —
-          ниже.
+          Проверьте готовый пакет перед загрузкой в staging.
         </span>
       </label>
       <div className="command-buttons">

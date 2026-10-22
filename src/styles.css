@@ -1727,3 +1727,29 @@ button.timeline-row {
   margin-top: 5px;
   opacity: 0.8;
 }
+
+.batch-progress {
+  width: 100%;
+  margin-top: 16px;
+  accent-color: #27a67e;
+}
+.batch-libraries {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin: 14px 0;
+}
+.batch-libraries > div {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border: 1px solid #e4e8ed;
+  border-radius: 12px;
+  padding: 12px;
+}
+.batch-libraries small {
+  color: #77818d;
+}
+.batch-libraries b {
+  font-size: 20px;
+}

@@ -4,9 +4,7 @@ import {
   Box,
   CheckCircle2,
   ChevronRight,
-  FileText,
   FolderOpen,
-  Play,
   RefreshCw,
   Server,
 } from "lucide-react";
@@ -19,6 +17,7 @@ import type {
 } from "./types";
 import { effectiveSources } from "./profile";
 import { AuthorityImportPane } from "./AuthorityImportPane";
+import { AuthorityBatchCard, type BatchState } from "./AuthorityBatchCard";
 import { TaskMonitor } from "./TaskMonitor";
 import {
   loadHistory,
@@ -44,6 +43,7 @@ export function AuthorityPane({
   onUpdate,
   onSettings,
 }: Props) {
+  const [batch, setBatch] = useState<BatchState | null>(null);
   const [container, setContainer] = useState<ContainerState | null>(null);
   const [worker, setWorker] = useState<WorkerState | null>(null);
   const [result, setResult] = useState<AuthorityResult | null>(null);
@@ -89,6 +89,7 @@ export function AuthorityPane({
   latestSettings.current = settingsFingerprint;
   useEffect(() => {
     epoch.current++;
+    setBatch(null);
     setContainer(null);
     setWorker(null);
     setResult(null);
@@ -100,7 +101,12 @@ export function AuthorityPane({
     [],
   );
   const ready = Boolean(container?.state.Running && worker);
-  const canStart = ready && !worker?.busy && worker?.accepting && !needsStatus;
+  const canStart =
+    ready &&
+    !worker?.busy &&
+    worker?.accepting &&
+    !needsStatus &&
+    batch?.status !== "running";
   async function run(action: AuthorityAction) {
     if (!window.desktop) {
       setResult({
@@ -130,6 +136,8 @@ export function AuthorityPane({
       )
         return;
       setResult(next);
+      if (next.ok && action === "batch-status")
+        setBatch(next.data as BatchState);
       setArchive((previous) => ({
         key: historyKey,
         records: mergeObservation(
@@ -169,6 +177,11 @@ export function AuthorityPane({
             "dry-run-rsl11",
             "apply-rsl11",
             "verify-rsl11",
+            "stage-tst11",
+            "analyze-tst11",
+            "dry-run-tst11",
+            "apply-tst11",
+            "verify-tst11",
           ].includes(action))
       )
         setWorker(next.data as WorkerState);
@@ -188,6 +201,11 @@ export function AuthorityPane({
           "dry-run-rsl11",
           "apply-rsl11",
           "verify-rsl11",
+          "stage-tst11",
+          "analyze-tst11",
+          "dry-run-tst11",
+          "apply-tst11",
+          "verify-tst11",
         ].includes(action);
       if (uncertain) setNeedsStatus(true);
       if (current === epoch.current)
@@ -368,18 +386,24 @@ export function AuthorityPane({
         <>
           {worker?.task?.importId &&
             worker.task.importId !==
-              (profile.processing.library === "RSL11"
-                ? profile.processing.importIdRsl11
-                : profile.processing.importIdRsl10) && (
+              (profile.processing.library === "TST11"
+                ? profile.processing.importIdTst11
+                : profile.processing.library === "RSL11"
+                  ? profile.processing.importIdRsl11
+                  : profile.processing.importIdRsl10) && (
               <div className="notice">
                 <span>
-                  Выбрана{" "}
-                  {profile.processing.library === "RSL11" ? "RSL11" : "RSL10"}.
-                  Последняя задача worker относится к другому импорту.
-                  Наблюдение показывает её до запуска выбранной библиотеки.
+                  Выбрана {profile.processing.library}. Последняя задача worker
+                  относится к другому импорту. Наблюдение показывает её до
+                  запуска выбранной библиотеки.
                 </span>
               </div>
             )}
+          <AuthorityBatchCard
+            state={batch}
+            disabled={disabled}
+            refresh={() => run("batch-status")}
+          />
           <AuthorityImportPane
             settings={profile.processing}
             disabled={disabled}
@@ -387,79 +411,6 @@ export function AuthorityPane({
             onUpdate={onUpdate}
             run={run}
           />
-          <section className="card workflow-card">
-            <div className="section-heading">
-              <div className="section-icon">
-                <Play size={19} />
-              </div>
-              <div>
-                <h2>Подготовка нормативных записей</h2>
-                <p>Каждая кнопка запускает отдельную серверную задачу.</p>
-              </div>
-            </div>
-            {!ready && (
-              <div className="notice">
-                <span>
-                  Сначала проверьте контейнер и статус worker на первом шаге.
-                </span>
-                <button onClick={() => onStep(1)}>К проверке</button>
-              </div>
-            )}
-            <div className="processing-sources">
-              {(["RSL10", "RSL11"] as const).map((library) => (
-                <div className="processing-row" key={library}>
-                  <div className="library-icon">
-                    <FileText size={18} />
-                  </div>
-                  <div className="processing-source">
-                    <strong>{library}</strong>
-                    <code>
-                      {sources[library === "RSL10" ? "rsl10" : "rsl11"]}
-                    </code>
-                    <small>
-                      Идентификатор:{" "}
-                      {library === "RSL11" ? "rsl11-nafpn" : "numeric001"} ·
-                      пустой FMT: reject
-                    </small>
-                  </div>
-                  <button
-                    className="button primary"
-                    disabled={disabled || !canStart}
-                    onClick={() =>
-                      run(
-                        library === "RSL10" ? "prepare-rsl10" : "prepare-rsl11",
-                      )
-                    }
-                  >
-                    <Play size={14} />
-                    {pending === `prepare-${library.toLowerCase()}`
-                      ? "Запускаем…"
-                      : `Подготовить ${library}`}
-                  </button>
-                </div>
-              ))}
-            </div>
-            <p className="workflow-description">
-              RSL11: политика rsl11-nafpn проверяет совпадение номера префикса с
-              001. Запускайте её для соответствующей выгрузки. Одновременно
-              worker выполняет одну задачу.
-            </p>
-            <div className="workflow-path">
-              <span>Каталог результатов из настроек</span>
-              <code>{sources.output}</code>
-              <small>
-                Worker назначает собственный каталог
-                /work/output/&lt;task.id&gt;. Фактический путь будет показан
-                после запуска; поле настроек не перенастраивает worker.
-              </small>
-            </div>
-            <div className="card-footer">
-              <button className="button secondary" onClick={onSettings}>
-                Изменить источники
-              </button>
-              <span>Подготовка пакета, без загрузки в БД</span>
-            </div>
-          </section>
           <TaskMonitor
             history={history}
             liveTaskId={worker?.task?.id}

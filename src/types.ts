@@ -30,6 +30,12 @@ export type Profile = {
     analysisReportRsl11: string;
     dryRunReportRsl11: string;
     applyReportRsl11: string;
+    packageTst11: string;
+    importIdTst11: string;
+    stageReportTst11: string;
+    analysisReportTst11: string;
+    dryRunReportTst11: string;
+    applyReportTst11: string;
   };
   source: { rsl10: string; relations: string; output: string; rsl11: string };
 };
@@ -66,7 +72,13 @@ export type AuthorityAction =
   | "analyze-rsl11"
   | "dry-run-rsl11"
   | "apply-rsl11"
-  | "verify-rsl11";
+  | "verify-rsl11"
+  | "stage-tst11"
+  | "analyze-tst11"
+  | "dry-run-tst11"
+  | "apply-tst11"
+  | "verify-tst11"
+  | "batch-status";
 export type WorkerState = {
   busy: boolean;
   accepting: boolean;

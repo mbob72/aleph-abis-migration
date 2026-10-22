@@ -104,6 +104,11 @@ export function mergeObservation(
       "dry-run-rsl11",
       "apply-rsl11",
       "verify-rsl11",
+      "stage-tst11",
+      "analyze-tst11",
+      "dry-run-tst11",
+      "apply-tst11",
+      "verify-tst11",
     ].includes(action)
       ? (result.data as WorkerState)
       : undefined);
@@ -116,18 +121,23 @@ export function mergeObservation(
     return history;
   const task = { ...state.task };
   const libraryFrom = (value: Task) =>
-    value.library || value.input?.match(/RSL(?:10|11)/i)?.[0].toUpperCase();
+    value.library ||
+    value.input?.match(/(?:RSL(?:10|11)|TST11)/i)?.[0].toUpperCase();
   const manifest = object(object(observation?.report).manifest);
   task.library =
     libraryFrom(task) ||
-    (manifest.library === "RSL10" || manifest.library === "RSL11"
+    (manifest.library === "TST11" ||
+    manifest.library === "RSL10" ||
+    manifest.library === "RSL11"
       ? manifest.library
       : undefined) ||
-    (action.endsWith("-rsl11")
-      ? "RSL11"
-      : action.endsWith("-rsl10")
-        ? "RSL10"
-        : undefined) ||
+    (action.endsWith("-tst11")
+      ? "TST11"
+      : action.endsWith("-rsl11")
+        ? "RSL11"
+        : action.endsWith("-rsl10")
+          ? "RSL10"
+          : undefined) ||
     history
       .filter((r) => task.importId && r.report?.id === task.importId)
       .map((r) => libraryFrom(r.task))

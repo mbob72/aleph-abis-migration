@@ -109,11 +109,11 @@ test("RSL10: свежие проверки предшествуют start, пу�
   const f = fixture();
   const result = await runAuthorityAction(request("prepare-rsl10"), f);
   assert.equal(result.ok, true, result.message);
-  assert.equal(f.commands.length, 4);
+  assert.equal(f.commands.length, 5);
   assert.equal(f.commands[0][1], "inspect");
   assert.ok(f.commands[1].includes("status"));
   assert.ok(f.commands[2].includes("test"));
-  const command = f.commands[3];
+  const command = f.commands.at(-1);
   assert.equal(
     command[command.indexOf("--input") + 1],
     "/source/rsl10_z00.dat",
@@ -1033,4 +1033,64 @@ test("RSL11: отчёт сохраняет только собственные U
     "/work/reports/dry-rsl11.json",
   );
   assert.equal(result.checkpointUpdates.dryRunReportRsl10, undefined);
+});
+
+test("TST11 хранит собственные checkpoints и не принимает кнопку RSL11", async () => {
+  const selected = {
+    ...profile,
+    processing: {
+      ...profile.processing,
+      library: "TST11",
+      importIdTst11: "selected-id",
+      importIdRsl11: "wrong-id",
+    },
+  };
+  assert.equal(settings(selected).importId, "selected-id");
+  assert.equal(settings(selected).suffix, "Tst11");
+  const f = fixture();
+  const result = await runAuthorityAction(
+    request("stage-rsl11", { profile: selected }),
+    f,
+  );
+  assert.equal(result.ok, false);
+  assert.equal(f.commands.length, 0);
+});
+test("пакетная блокировка запрещает одиночный start", async () => {
+  const f = fixture({
+    respond: (argv) =>
+      argv.includes("/work/control/authority-batch.lock")
+        ? { failure: "Пакетная загрузка выполняется" }
+        : undefined,
+  });
+  const result = await runAuthorityAction(request("prepare-rsl10"), f);
+  assert.equal(result.ok, false);
+  assert.ok(!f.commands.some((argv) => argv.includes("start")));
+});
+test("состояние общей загрузки восстанавливает независимые checkpoints TST11", async () => {
+  const f = fixture({
+    respond: (argv) =>
+      argv.includes("--status")
+        ? {
+            version: "authority-refresh-v1",
+            status: "running",
+            results: [
+              {
+                library: "TST11",
+                package: "/work/output/tst11",
+                importId: "id-tst11",
+                reports: { stage: "/work/reports/tst11-stage.json" },
+              },
+            ],
+          }
+        : undefined,
+  });
+  const result = await runAuthorityAction(request("batch-status"), f);
+  assert.equal(result.ok, true, result.message);
+  assert.equal(result.checkpointUpdates.importIdTst11, "id-tst11");
+  assert.equal(
+    result.checkpointUpdates.stageReportTst11,
+    "/work/reports/tst11-stage.json",
+  );
+  assert.equal(result.checkpointUpdates.applyReportTst11, "");
+  assert.equal(result.checkpointUpdates.importIdRsl10, undefined);
 });
